@@ -14,7 +14,7 @@ If you discover a security vulnerability in this project, please do **not** open
 
 **Mahmoud Labib**
 Email: mahmoud.labib@fci.bu.edu.eg
-Affiliation: Faculty of Computers and Artificial Intelligence, Benha University, Egypt
+Affiliation: Faculty of Specific Education, Benha University, Egypt
 
 Please include in your report:
 - A description of the vulnerability and its potential impact.

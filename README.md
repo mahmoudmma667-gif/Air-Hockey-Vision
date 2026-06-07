@@ -11,7 +11,7 @@
 
 **A high-performance, research-grade Python system demonstrating a multi-threaded computer vision interface for real-time Human-Computer Interaction (HCI). Fully open-source and submitted for peer review in the Journal of Open Source Software (JOSS).**
 
-> **Author:** Mahmoud Labib — Faculty of Computers and Artificial Intelligence, Benha University, Egypt
+> **Author:** Mahmoud Labib — Faculty of Specific Education, Benha University, Egypt
 
 ---
 
@@ -349,7 +349,7 @@ If you use this software in your research, please cite it using the following Bi
   journal = {Journal of Open Source Software},
   year    = {2026},
   publisher = {The Open Journal},
-  note    = {Faculty of Computers and Artificial Intelligence, Benha University, Egypt}
+  note    = {Faculty of Specific Education, Benha University, Egypt}
 }
 ```
 
@@ -373,4 +373,4 @@ All contributors are expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md
 
 This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
 
-Copyright (c) 2026 Mahmoud Labib, Faculty of Computers and Artificial Intelligence, Benha University, Egypt.
+Copyright (c) 2026 Mahmoud Labib, Faculty of Specific Education, Benha University, Egypt.

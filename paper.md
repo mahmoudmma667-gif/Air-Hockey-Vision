@@ -12,7 +12,7 @@ authors:
     orcid: 0009-0003-8176-9214
     affiliation: 1
 affiliations:
-  - name: Faculty of Computers and Artificial Intelligence, Benha University, Egypt
+  - name: Faculty of Specific Education, Benha University, Egypt
     index: 1
 date: 7 June 2026
 bibliography: paper.bib
@@ -96,6 +96,6 @@ During the preparation of this manuscript, the authors utilized generative AI as
 
 # Acknowledgements
 
-The author acknowledges the Faculty of Computers and Artificial Intelligence, Benha University, Egypt, for providing the research resources and academic environment that supported this project. We also thank the open-source community developers of Pygame Community Edition, OpenCV, and MediaPipe for providing the foundations of this work.
+The author acknowledges the Faculty of Specific Education, Benha University, Egypt, for providing the research resources and academic environment that supported this project. We also thank the open-source community developers of Pygame Community Edition, OpenCV, and MediaPipe for providing the foundations of this work.
 
 # References
