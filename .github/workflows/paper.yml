@@ -1,0 +1,25 @@
+name: Compile paper
+on:
+  push:
+    paths:
+      - 'paper.md'
+      - 'paper.bib'
+      - 'system_architecture.png'
+  pull_request:
+    paths:
+      - 'paper.md'
+      - 'paper.bib'
+      - 'system_architecture.png'
+  workflow_dispatch:
+
+jobs:
+  paper:
+    runs-on: ubuntu-latest
+    name: Julia / Python / R Paper Compiler
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build PDF
+        uses: openjournals/paper-action@main
+        with:
+          paper_path: paper.md
