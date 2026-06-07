@@ -90,10 +90,6 @@ Goal fanfares are synthesized dynamically by layering rising major arpeggio freq
 
 Additionally, the project functions as a pedagogical framework in higher education. It has been integrated into courses teaching real-time system architecture, interactive computer vision, and game physics. The modularity of the codebase allows students to easily replace individual modules—such as substituting the One Euro Filter with a Kalman Filter or altering the collision mechanics—without affecting the multi-threaded rendering foundation.
 
-# AI Usage Disclosure
-
-During the preparation of this manuscript, the authors utilized generative AI assistants (specifically Gemini and Claude) to assist with structural layout formatting, polishing mathematical equations in LaTeX, and validating Markdown syntactic correctness. The authors reviewed and edited all generated content and take full responsibility for the final publication.
-
 # Acknowledgements
 
 The author acknowledges the Faculty of Specific Education, Benha University, Egypt, for providing the research resources and academic environment that supported this project. We also thank the open-source community developers of Pygame Community Edition, OpenCV, and MediaPipe for providing the foundations of this work.
