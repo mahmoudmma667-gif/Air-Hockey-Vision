@@ -1,0 +1,61 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in Air Hockey Vision
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to report a bug. Please fill in the following information
+        to help us reproduce and fix the issue as quickly as possible.
+
+  - type: input
+    id: version
+    attributes:
+      label: Python Version
+      placeholder: "e.g. 3.12.0"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      placeholder: "e.g. Windows 11, Ubuntu 22.04"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the behavior.
+      placeholder: |
+        1. Launch main.py
+        2. Place hand in frame
+        3. Observe behavior...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console Output / Error Logs
+      description: Paste any relevant terminal output or error messages here.
+      render: shell

@@ -1,0 +1,52 @@
+name: Feature Request
+description: Propose a new feature or enhancement for Air Hockey Vision
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for proposing a new feature. Please describe your idea clearly so we can
+        evaluate it for inclusion in the project roadmap.
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation and Context
+      description: >
+        Why is this feature needed? Which limitation or gap does it address?
+        Is it related to a specific HCI use case, research application, or educational scenario?
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Proposed Feature Description
+      description: A clear and concise description of the feature you would like added.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: >
+        Have you considered alternative approaches? If so, describe them and explain
+        why the proposed solution is preferable.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Technical Area
+      options:
+        - Vision / Hand Tracking
+        - Physics Engine
+        - AI Opponent
+        - Signal Filtering
+        - Rendering / UI
+        - Audio Synthesis
+        - Testing / Documentation
+        - Other
+    validations:
+      required: true

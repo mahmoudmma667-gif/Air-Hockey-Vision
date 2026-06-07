@@ -1,0 +1,59 @@
+cff-version: 1.2.0
+message: "If you use this software in your research, please cite it using the metadata below."
+type: software
+title: "Air Hockey Vision: A Multi-Threaded Real-Time Computer Vision Interface for High-Frequency Human-Computer Interaction"
+abstract: >
+  Air Hockey Vision is a Python software system that integrates real-time markerless
+  hand tracking (Google MediaPipe) with a physical air hockey simulation. The system
+  employs a multi-threaded architecture to decouple camera acquisition, landmark
+  detection, and game rendering into independent execution threads, achieving stable
+  60 Hz interactive performance. Signal noise is eliminated via an adaptive 2D One
+  Euro Filter, and kinematic forward extrapolation compensates for end-to-end
+  pipeline latency. The project serves as a reference implementation for low-latency
+  HCI systems and as a pedagogical platform for teaching signal filtering, predictive
+  kinematics, and elastic collision physics.
+authors:
+  - family-names: Labib
+    given-names: Mahmoud
+    orcid: https://orcid.org/0009-0003-8176-9214
+    affiliation: >
+      Faculty of Computers and Artificial Intelligence,
+      Benha University, Egypt
+    email: mahmoud.labib@fci.bu.edu.eg
+version: 1.0.0
+date-released: 2026-06-07
+license: MIT
+repository-code: https://github.com/mahmoudmma667-gif/Air-Hockey-Vision
+url: https://github.com/mahmoudmma667-gif/Air-Hockey-Vision
+keywords:
+  - Python
+  - computer vision
+  - human-computer interaction
+  - real-time tracking
+  - game physics
+  - signal processing
+  - MediaPipe
+  - One Euro Filter
+  - procedural audio
+  - multi-threading
+references:
+  - type: article
+    title: "1€ filter: a simple algorithm for filtering noisy input signals in real-time"
+    authors:
+      - family-names: Casiez
+        given-names: Gery
+      - family-names: Roussel
+        given-names: Nicolas
+      - family-names: Vogel
+        given-names: Daniel
+    doi: 10.1145/2207676.2208639
+    year: 2012
+  - type: article
+    title: "MediaPipe Hands: On-device Real-time Hand Tracking for Mobile and Web"
+    authors:
+      - family-names: Zhang
+        given-names: Fan
+      - family-names: Bazarevsky
+        given-names: Valentin
+    year: 2020
+    url: https://arxiv.org/abs/2006.10214
