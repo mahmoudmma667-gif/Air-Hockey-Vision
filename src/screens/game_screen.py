@@ -4,6 +4,7 @@ Soccer-pitch layout with live camera panels on left + right sides.
 """
 
 import math
+import random
 import time
 import cv2
 import pygame
@@ -35,20 +36,11 @@ from src.rendering.ui       import (
     ScoreDisplay, FontCache, render_text, render_text_glow,
     draw_tracking_indicator, draw_fps,
 )
-from src.rendering.effects  import ParticleSystem, ScreenFlash
+from src.rendering.effects  import ParticleSystem, ScreenFlash, ScreenShake
 from src.utils.replay       import ReplayRecorder
 from src.core.events        import bus, EVT_PUCK_HIT_WALL, EVT_PUCK_HIT_PADDLE
 
 
-# MediaPipe hand-connection skeleton for overlay drawing
-_MP_CONNECTIONS = [
-    (0,1),(1,2),(2,3),(3,4),          # thumb
-    (0,5),(5,6),(6,7),(7,8),          # index
-    (0,9),(9,10),(10,11),(11,12),     # middle
-    (0,13),(13,14),(14,15),(15,16),   # ring
-    (0,17),(17,18),(18,19),(19,20),   # pinky
-    (5,9),(9,13),(13,17),             # palm
-]
 
 
 class GameScreen:
@@ -95,6 +87,11 @@ class GameScreen:
         self._goal_timer    = 0.0
         self._goal_flash_p1 = 0.0
         self._goal_flash_p2 = 0.0
+        self._goal_spark_timer = 0.0
+
+        # Screen shake (haptic feedback)
+        self._screen_shake = ScreenShake()
+        self._shake_surf: pygame.Surface | None = None
 
         # Countdown
         self._counting_down  = True
@@ -105,6 +102,7 @@ class GameScreen:
         self._rally_timer  = 0.0
         self._max_rally    = 0.0
         self._fastest_puck = 0.0
+        self._match_point_played = False
 
         # Replay
         self._replay = ReplayRecorder()
@@ -207,14 +205,33 @@ class GameScreen:
             self._goal_timer    += dt
             self._goal_flash_p1  = max(0.0, self._goal_flash_p1 - dt * 1.5)
             self._goal_flash_p2  = max(0.0, self._goal_flash_p2 - dt * 1.5)
+
+            # Continuous mini celebration sparks during goal banner
+            self._goal_spark_timer += dt
+            if self._goal_spark_timer >= 0.055:
+                self._goal_spark_timer = 0.0
+                color = C_GOAL_GLOW_P1 if self._goal_state == 'p1' else C_GOAL_GLOW_P2
+                cx, cy = TABLE_CENTER_X, TABLE_CENTER_Y
+                for _ in range(2):
+                    sx = cx + random.randint(-200, 200)
+                    sy = cy + random.randint(-50, 30)
+                    self.renderer.particles.spawn_hit_sparks(sx, sy, color, count=3)
+
             if self._goal_timer >= self.GOAL_DELAY:
                 self._goal_state = None
                 self._goal_timer = 0.0
+                self._goal_spark_timer = 0.0
                 self._serve_puck()
             return None
 
         # Move paddles
         self._update_paddles(dt)
+
+        # Animate puck drop-in
+        if hasattr(self.puck, 'spawn_scale') and self.puck.spawn_scale > 1.0:
+            self.puck.spawn_scale = max(1.0, self.puck.spawn_scale - dt * 6.0)
+            self.puck.x = float(TABLE_CENTER_X)
+            self.puck.y = float(TABLE_CENTER_Y)
 
         # AI
         if self._ai:
@@ -254,6 +271,25 @@ class GameScreen:
         return None
 
     def draw(self, fps: float = 60.0):
+        shake_x, shake_y = self._screen_shake.update()
+
+        if shake_x != 0 or shake_y != 0:
+            # Render game to a temp surface, then blit with offset for shake effect
+            w, h = self.surface.get_size()
+            if self._shake_surf is None or self._shake_surf.get_size() != (w, h):
+                self._shake_surf = pygame.Surface((w, h))
+            orig = self.surface
+            self.surface = self._shake_surf
+            self.renderer.surface = self._shake_surf
+            self._do_draw(fps)
+            orig.fill(self.renderer.c_bg)
+            orig.blit(self._shake_surf, (shake_x, shake_y))
+            self.surface = orig
+            self.renderer.surface = orig
+        else:
+            self._do_draw(fps)
+
+    def _do_draw(self, fps: float = 60.0):
         self.renderer.clear()
         self.renderer.draw_field()
         self.renderer.draw_goal_glow(self._goal_flash_p1, self._goal_flash_p2)
@@ -281,44 +317,17 @@ class GameScreen:
     # ── Camera panels ─────────────────────────────────────────────────────────
 
     def _update_camera_surfaces(self):
-        """Convert latest OpenCV frame to pygame surfaces (with landmarks)."""
-        frame, landmarks = self.tracker.get_preview_snapshot()
-        if frame is None:
+        """Convert pre-rendered OpenCV thumbnail buffer to pygame surfaces."""
+        thumb_bytes = self.tracker.get_thumbnail_bytes()
+        if thumb_bytes is None:
             return
 
-        h_orig, w_orig = frame.shape[:2]
         tw, th = CAM_PANEL_W, CAM_PANEL_H
-
         try:
-            small = cv2.resize(frame, (tw, th))
-            # Draw hand skeleton on thumbnail for each tracked hand
-            sx = tw / w_orig
-            sy = th / h_orig
-
-            for hand_idx in range(2):
-                lms = landmarks.get(hand_idx)
-                if lms:
-                    color_bgr = (220, 130, 40) if hand_idx == 0 else (40, 120, 220)
-                    # Connections
-                    for (a, b) in _MP_CONNECTIONS:
-                        ax = int(lms[a][0] * sx)
-                        ay = int(lms[a][1] * sy)
-                        bx = int(lms[b][0] * sx)
-                        by = int(lms[b][1] * sy)
-                        cv2.line(small, (ax, ay), (bx, by), color_bgr, 1)
-                    # Landmark dots
-                    for pt in lms:
-                        px = int(pt[0] * sx)
-                        py = int(pt[1] * sy)
-                        cv2.circle(small, (px, py), 2, (255, 255, 255), -1)
-
-            rgb  = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
-            surf = pygame.image.frombuffer(rgb.tobytes(), (tw, th), "RGB").convert()
-
+            surf = pygame.image.frombuffer(thumb_bytes, (tw, th), "RGB").convert()
             # P1 gets normal feed; P2/AI gets mirrored (same camera, flipped)
             self._cam_surf1 = surf
             self._cam_surf2 = pygame.transform.flip(surf, True, False)
-
         except Exception:
             pass
 
@@ -326,18 +335,18 @@ class GameScreen:
         """Draw camera thumbnails in the bottom corners."""
         panel_h = CAM_PANEL_H
         panel_w = CAM_PANEL_W
-        y = WINDOW_HEIGHT - panel_h - 10
+        y = WINDOW_HEIGHT - panel_h - 4
         preview_on = self.settings_state.get('show_camera', True)
 
         # Left panel → Player 1 camera
-        lx = 10
+        lx = 4
         self._draw_one_panel(lx, y, self._cam_surf1 if preview_on else None,
                              "P1", C_PADDLE_P1,
                              self.tracker.is_tracking[0], is_ai=False,
                              preview_off=not preview_on)
 
         # Right panel → Player 2 / AI
-        rx = WINDOW_WIDTH - panel_w - 10
+        rx = WINDOW_WIDTH - panel_w - 4
         label2 = "AI" if self.mode == MODE_VS_AI else "P2"
         is_ai  = (self.mode == MODE_VS_AI)
 
@@ -404,8 +413,11 @@ class GameScreen:
         live_surf = live_font.render(live_text, True, live_color)
         self.surface.blit(live_surf, (x + 5, y + 4))
 
-        # Border with player color + rounded
-        pygame.draw.rect(self.surface, color, (x, y, tw, th), 2, border_radius=8)
+        # Border with player color + rounded, sleeker
+        pygame.draw.rect(self.surface, color, (x, y, tw, th), 2, border_radius=6)
+        
+        # Inner thin border for professional look
+        pygame.draw.rect(self.surface, (255, 255, 255, 60), (x+2, y+2, tw-4, th-4), 1, border_radius=4)
 
         # Label below panel
         font  = FontCache.get(FONT_SMALL, bold=True)
@@ -419,24 +431,18 @@ class GameScreen:
     def _map_camera_to_table(self, cam_x: float, cam_y: float, player_id: int) -> tuple[float, float]:
         """
         Maps an active zone of the camera to the full table.
-
-        Uses a non-linear (cubic ease) response:
-          - Small, precise finger movements  → accurate low-amplitude control
-          - Large sweeping gestures          → paddle travels full width quickly
-        This is the same curve used in high-end gaming mice.
+        Uses a dynamic deadzone and smoother curve to eliminate jitter.
         """
         sensitivity = self.settings_state.get('sensitivity', 0.6)
-        # sensitivity 0.0 → active_range 1.0 (need big gestures)
-        # sensitivity 1.0 → active_range 0.28 (small gestures = full travel)
-        active_range = max(0.28, 1.0 - sensitivity * 0.72)
+        # Less aggressive range, min 0.4 to avoid amplifying jitter
+        active_range = max(0.4, 1.0 - sensitivity * 0.5)
         active_min   = 0.5 - active_range / 2.0
 
         # Normalize into [0, 1] within the active zone
         nx = max(0.0, min(1.0, (cam_x - active_min) / active_range))
         ny = max(0.0, min(1.0, (cam_y - active_min) / active_range))
 
-        # Cubic ease-in-out for natural feel (keeps precision at centre)
-        # f(t) = 3t² - 2t³  →  derivative is 0 at extremes, max at 0.5
+        # Smoother ease-in-out:
         nx = nx * nx * (3.0 - 2.0 * nx)
         ny = ny * ny * (3.0 - 2.0 * ny)
 
@@ -458,8 +464,8 @@ class GameScreen:
         """
         # ── Player 1 (Left half) – hand index 0 ──────────────────────────────
         if self.tracker.camera_available:
-            # Use predicted position to cancel pipeline latency
-            p1_pos = self.tracker.get_predicted_position(0, lookahead=dt)
+            # Use predicted position to cancel pipeline latency (boosted by 1.5x for webcam lag)
+            p1_pos = self.tracker.get_predicted_position(0, lookahead=dt * 1.5)
         else:
             p1_pos = None
 
@@ -498,14 +504,21 @@ class GameScreen:
             self._goal_flash_p1 = 1.0
             self.renderer.particles.spawn_goal_explosion(
                 TABLE_RIGHT - 20, TABLE_CENTER_Y, 1)
+            # Extra score-area burst + score number area sparks
+            self.renderer.particles.spawn_score_burst(
+                TABLE_CENTER_X - 100, 40, C_GOAL_GLOW_P1, count=22)
             self.renderer.flash.trigger(C_GOAL_GLOW_P1, 120)
+            self._screen_shake.trigger(amplitude=10, frames=18)
         else:
             self.p2_score += 1
             self.score_disp.flash_p2()
             self._goal_flash_p2 = 1.0
             self.renderer.particles.spawn_goal_explosion(
                 TABLE_LEFT + 20, TABLE_CENTER_Y, 2)
+            self.renderer.particles.spawn_score_burst(
+                TABLE_CENTER_X + 100, 40, C_GOAL_GLOW_P2, count=22)
             self.renderer.flash.trigger(C_GOAL_GLOW_P2, 120)
+            self._screen_shake.trigger(amplitude=10, frames=18)
 
         self.sound.play_goal()
         self.puck.active = False
@@ -520,6 +533,13 @@ class GameScreen:
         self._counting_down   = True
         self._countdown       = self.COUNTDOWN_DUR
         self._countdown_start = time.perf_counter()
+
+        # Match point hype
+        if self.p1_score == SCORE_TO_WIN - 1 or self.p2_score == SCORE_TO_WIN - 1:
+            if not getattr(self, '_match_point_played', False):
+                self.sound.play_goal()  # Extra sound for hype
+                self.renderer.flash.trigger(C_NEON_YELLOW, 200)
+                self._match_point_played = True
 
     def _end_match(self):
         self._match_over = True
@@ -546,6 +566,7 @@ class GameScreen:
         self._rally_timer   = 0.0
         self._max_rally     = 0.0
         self._fastest_puck  = 0.0
+        self._match_point_played = False
         self.puck.reset(serve_to=1)
         self.renderer.particles.clear()
         self._counting_down   = True
@@ -570,8 +591,6 @@ class GameScreen:
     # ── HUD + overlays ────────────────────────────────────────────────────────
 
     def _draw_hud(self, fps: float):
-        draw_fps(self.surface, fps)
-
         # Keyboard hint when no hand tracking
         if not (self.tracker.camera_available and self.tracker.is_tracking[0]):
             hint = FontCache.get(FONT_TINY).render(
@@ -593,28 +612,47 @@ class GameScreen:
             pygame.draw.circle(s, (0, 0, 0, 140), (80, 80), 80)
             self.surface.blit(s, (cx - 80, cy - 80))
             render_text(self.surface, txt, f, C_NEON_YELLOW, (cx, cy))
+            
+            # Match point text
+            if self.p1_score == SCORE_TO_WIN - 1 or self.p2_score == SCORE_TO_WIN - 1:
+                render_text_glow(self.surface, "MATCH POINT", FontCache.get(FONT_LARGE, bold=True), C_NEON_YELLOW, (cx, cy + 120), glow_color=(255, 200, 0, 150))
             return
 
         # Goal banner
         if self._goal_state:
-            color = C_GOAL_GLOW_P1 if self._goal_state == 'p1' else C_GOAL_GLOW_P2
+            color  = C_GOAL_GLOW_P1 if self._goal_state == 'p1' else C_GOAL_GLOW_P2
             scorer = ("PLAYER 1" if self._goal_state == 'p1'
                       else ("AI" if self.mode == MODE_VS_AI else "PLAYER 2"))
 
-            # Translucent banner
-            bw, bh = 460, 90
-            ban = pygame.Surface((bw, bh), pygame.SRCALPHA)
-            ban.fill((0, 0, 0, 170))
-            self.surface.blit(ban, (cx - bw // 2, cy - 55))
-            pygame.draw.rect(self.surface, color,
-                             (cx - bw // 2, cy - 55, bw, bh), 2, border_radius=6)
+            # Shake the banner text during the first half of the delay
+            shake_t = max(0.0, 1.0 - self._goal_timer / (self.GOAL_DELAY * 0.4))
+            bx_off  = int(random.uniform(-3, 3) * shake_t)
+            by_off  = int(random.uniform(-2, 2) * shake_t)
 
+            # Translucent banner (taller to give subtitle breathing room)
+            bw, bh = 460, 112
+            ban = pygame.Surface((bw, bh), pygame.SRCALPHA)
+            ban.fill((0, 0, 0, 175))
+            bx = cx - bw // 2 + bx_off
+            by = cy - 60 + by_off
+            self.surface.blit(ban, (bx, by))
+            pygame.draw.rect(self.surface, color, (bx, by, bw, bh), 2, border_radius=8)
+
+            # Inner glow border (subtle)
+            glow_c = (*color[:3], 60)
+            inner_s = pygame.Surface((bw - 4, bh - 4), pygame.SRCALPHA)
+            pygame.draw.rect(inner_s, glow_c, inner_s.get_rect(), 4, border_radius=6)
+            self.surface.blit(inner_s, (bx + 2, by + 2))
+
+            # "GOAL!" text — centred vertically in top 60% of banner
             render_text(self.surface, "GOAL!",
                         FontCache.get(FONT_LARGE, bold=True), color,
-                        (cx, cy - 18), shadow=True)
+                        (cx + bx_off, by + 42), shadow=True)
+
+            # Subtitle — centred in bottom 40%, well clear of border
             render_text(self.surface, f"{scorer} SCORES",
                         FontCache.get(FONT_SMALL), color,
-                        (cx, cy + 22))
+                        (cx + bx_off, by + bh - 26))
             return
 
         # Match over

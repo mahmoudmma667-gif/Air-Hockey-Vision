@@ -20,11 +20,11 @@ def _cached_circle_surface(color, radius: int, alpha: int) -> pygame.Surface | N
     if alpha <= 0:
         return None
 
-    alpha = min(255, max(16, ((alpha + 8) // 16) * 16))
+    alpha = min(255, max(32, ((alpha + 16) // 32) * 32))
     key = (*color[:3], radius, alpha)
     surf = _CIRCLE_SURFACE_CACHE.get(key)
     if surf is None:
-        if len(_CIRCLE_SURFACE_CACHE) > 512:
+        if len(_CIRCLE_SURFACE_CACHE) > 4096:
             _CIRCLE_SURFACE_CACHE.clear()
         size = radius * 2 + 1
         surf = pygame.Surface((size, size), pygame.SRCALPHA)
@@ -135,6 +135,21 @@ class ParticleSystem:
             life  = random.randint(8, 20)
             self._particles.append(Particle(x, y, vx, vy, color, size, life, gravity=0.12))
 
+    def spawn_score_burst(self, x: float, y: float, color, count: int = 18):
+        """Tiny fast sparks for score celebration — biased upward."""
+        for _ in range(count):
+            angle = random.uniform(0, math.tau)
+            speed = random.uniform(2, 8)
+            self._particles.append(Particle(
+                x, y,
+                math.cos(angle) * speed,
+                math.sin(angle) * speed - 3.5,
+                color,
+                random.uniform(2, 5),
+                random.randint(14, 30),
+                gravity=0.2,
+            ))
+
     def update(self):
         self._particles = [p for p in self._particles if p.update()]
 
@@ -195,3 +210,33 @@ class ScreenFlash:
             self._size = (w, h)
         self._surface.fill((*self.color[:3], self.alpha))
         surface.blit(self._surface, (0, 0))
+
+
+# ─── Screen Shake ─────────────────────────────────────────────────────────────
+
+class ScreenShake:
+    """Fast-decaying random screen offset for impact / vibration feedback."""
+
+    def __init__(self):
+        self._amp    = 0
+        self._frames = 0
+        self._total  = 15
+
+    def trigger(self, amplitude: int = 8, frames: int = 15):
+        self._amp    = max(self._amp, amplitude)
+        self._frames = max(self._frames, frames)
+        self._total  = max(self._total, frames)
+
+    def update(self) -> tuple[int, int]:
+        if self._frames <= 0:
+            self._amp   = 0
+            self._total = 15
+            return (0, 0)
+        frac = self._frames / max(1, self._total)
+        amp  = max(1, int(self._amp * frac * frac))   # quadratic ease-out
+        self._frames -= 1
+        return (random.randint(-amp, amp), random.randint(-amp, amp))
+
+    @property
+    def active(self) -> bool:
+        return self._frames > 0

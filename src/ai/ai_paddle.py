@@ -41,7 +41,7 @@ from src.utils.math_utils import clamp, lerp, vec2_dist
 
 
 # --- Simulation Constants ---
-_MAX_SIM_STEPS = 120        # Upper bound on trajectory raycast steps
+_MAX_SIM_STEPS = 60         # Upper bound on trajectory raycast steps
 _SLOWDOWN_THRESHOLD = 0.3   # Linear speed threshold below which puck is stationary
 
 

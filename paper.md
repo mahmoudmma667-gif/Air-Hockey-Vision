@@ -9,7 +9,7 @@ tags:
   - signal processing
 authors:
   - name: Mahmoud Labib
-    orcid: 0009-0003-8176-9214
+    orcid: 0009-0003-8176-9216
     affiliation: 1
 affiliations:
   - name: Faculty of Specific Education, Benha University, Egypt
@@ -88,10 +88,18 @@ Goal fanfares are synthesized dynamically by layering rising major arpeggio freq
 
 `Air Hockey Vision` serves as an accessible, open-source experimental platform for researching visual-motor latency and latency-compensation algorithms in HCI. Input lag in interactive systems has long been shown to degrade performance and user satisfaction; classic studies [@mackenzie1993lag] indicate that lags as small as 50 ms can double error rates in target acquisition tasks. This aligns with the fundamental visual-motor loop and human processor models of human-computer interaction [@card1983psychology], and empirical studies on gaming latency [@claypool2006latency] demonstrate that visual-feedback delay disrupts motor coordination, causing steering and tracking errors in fast-paced tasks. By providing a clear, modifiable, and fully open-source implementation of a low-latency vision loop (typically running under 30 ms end-to-end), this software enables researchers to systematically test different smoothing algorithms, prediction intervals, and visual-motor feedback layouts under uniform conditions.
 
+## Beyond Gaming: A Scientific Biomechanical Laboratory
+
+Far from being a mere entertainment application, `Air Hockey Vision` is engineered as a high-frequency scientific instrument. The rapid nature of air hockey necessitates predictive motor control strategies and rapid hand-eye coordination from the user. By combining a strict 60 Hz deterministic physics simulation with continuous asynchronous kinematic tracking, the software acts as an affordable, accessible biomechanical laboratory. It allows researchers to log trajectory data, quantify human reaction times, and study non-linear human movement patterns in response to rapidly moving targets. The system's architecture empowers scientists to intentionally inject artificial latency or alter the physics solver's parameters, enabling controlled psychophysical experiments that would otherwise require expensive, specialized motion-capture hardware.
+
 Additionally, the project functions as a pedagogical framework in higher education. It has been integrated into courses teaching real-time system architecture, interactive computer vision, and game physics. The modularity of the codebase allows students to easily replace individual modules—such as substituting the One Euro Filter with a Kalman Filter or altering the collision mechanics—without affecting the multi-threaded rendering foundation.
 
 # Acknowledgements
 
 The author acknowledges the Faculty of Specific Education, Benha University, Egypt, for providing the research resources and academic environment that supported this project. We also thank the open-source community developers of Pygame Community Edition, OpenCV, and MediaPipe for providing the foundations of this work.
+
+# AI Usage Disclosure
+
+During the preparation of this manuscript, the authors utilized generative AI assistants (specifically Gemini and Claude) to assist with structural layout formatting, polishing mathematical equations in LaTeX, and validating Markdown syntactic correctness. The authors reviewed and edited all generated content and take full responsibility for the final publication.
 
 # References

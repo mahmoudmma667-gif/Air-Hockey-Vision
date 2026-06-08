@@ -26,11 +26,11 @@ class SettingsScreen:
         )
 
         self._cam_btn = Button(
-            pygame.Rect(cx - 160, 440, 320, 48),
+            pygame.Rect(cx - 160, 480, 320, 48),
             "", C_NEON_YELLOW
         )
         self._theme_btn = Button(
-            pygame.Rect(cx - 160, 500, 320, 48),
+            pygame.Rect(cx - 160, 540, 320, 48),
             "", C_NEON_MAGENTA
         )
 
@@ -42,7 +42,7 @@ class SettingsScreen:
         ]
         self._slider_rects = []
         for i, (label, key, lo, hi) in enumerate(self._sliders):
-            r = pygame.Rect(cx - 200, 260 + i * 90, 400, 16)
+            r = pygame.Rect(cx - 200, 190 + i * 100, 400, 12)
             self._slider_rects.append(r)
 
         self._dragging: int | None = None
@@ -102,24 +102,24 @@ class SettingsScreen:
 
             # Label
             render_text_glow(surface, label, FontCache.get(FONT_SMALL),
-                             C_UI_TEXT, (cx, r.top - 22))
+                             C_UI_TEXT, (cx, r.top - 20))
 
             # Track
-            pygame.draw.rect(surface, (*C_UI_DIM, 120),
-                             r, border_radius=8)
+            pygame.draw.rect(surface, (*C_UI_DIM, 80),
+                             r, border_radius=6)
             # Fill
             fill_r = pygame.Rect(r.x, r.y, int(r.width * t), r.height)
-            pygame.draw.rect(surface, C_NEON_CYAN, fill_r, border_radius=8)
+            pygame.draw.rect(surface, C_NEON_CYAN, fill_r, border_radius=6)
             # Handle
             hx = r.x + int(r.width * t)
-            pygame.draw.circle(surface, C_NEON_CYAN, (hx, r.centery), 12)
-            pygame.draw.circle(surface, (255, 255, 255, 200), (hx, r.centery), 5)
+            pygame.draw.circle(surface, C_NEON_CYAN, (hx, r.centery), 10)
+            pygame.draw.circle(surface, (255, 255, 255, 200), (hx, r.centery), 4)
 
             # Value text
             val_str = f"{val:.2f}" if isinstance(val, float) else str(val)
             render_text_glow(surface, val_str,
-                             FontCache.get(FONT_TINY), C_UI_DIM,
-                             (cx + 220, r.centery), center=False)
+                             FontCache.get(FONT_SMALL), C_UI_DIM,
+                             (cx + 230, r.centery), center=False)
 
         cam_val = self.state.get('show_camera', True)
         self._cam_btn.text = f"CAMERA PREVIEW: {'ON' if cam_val else 'OFF'}"

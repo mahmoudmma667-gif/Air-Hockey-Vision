@@ -23,6 +23,7 @@ class Puck:
         self.trail: list[tuple] = []
         self.spin: float = 0.0
         self.active: bool = True
+        self.spawn_scale: float = 1.0
 
     def reset(self, serve_to: int = 1):
         self.x  = float(TABLE_CENTER_X)
@@ -30,9 +31,11 @@ class Puck:
         self.trail.clear()
         self.spin   = 0.0
         self.active = True
+        self.spawn_scale = 4.0  # Starts 4x larger for drop-in effect
 
-        angle     = random.uniform(-30, 30)
-        speed     = 5.5
+
+        angle     = random.uniform(-20, 20)
+        speed     = 3.5  # Slower initial speed
         rad       = math.radians(angle)
         direction = 1 if serve_to == 1 else -1
         self.vx   = math.cos(rad) * speed * direction

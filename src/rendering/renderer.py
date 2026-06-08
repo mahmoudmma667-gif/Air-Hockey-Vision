@@ -17,7 +17,7 @@ from src.core.settings import (
     C_PUCK, C_PUCK_SHADOW, C_PADDLE_P1, C_PADDLE_P2, C_PADDLE_AI,
     C_GOAL_GLOW_P1, C_GOAL_GLOW_P2, C_WHITE, C_UI_DIM,
     PUCK_RADIUS, PADDLE_RADIUS, TRAIL_LENGTH,
-    THEME_NEON, THEME_SOCCER,
+    THEME_NEON, THEME_SOCCER, C_NEON_YELLOW,
 )
 from src.rendering.effects import (
     ParticleSystem, ScreenFlash,
@@ -70,21 +70,36 @@ class Renderer:
     def draw_puck(self, puck):
         if not puck.active:
             return
+            
+        scale = getattr(puck, 'spawn_scale', 1.0)
+        eff_radius = int(puck.radius * scale)
+        alpha = int(255 / scale) if scale > 1.0 else 255
+
         # Shadow
-        shadow_r = puck.radius - 2
+        shadow_r = eff_radius - 2
         pygame.draw.circle(self.surface, C_PUCK_SHADOW,
                            (int(puck.x) + 3, int(puck.y) + 3), shadow_r)
-        # Trail
-        draw_trail(self.surface, puck.trail, C_PUCK, max_radius=puck.radius - 4)
-        # Main disc
-        pygame.draw.circle(self.surface, C_PUCK,
-                           (int(puck.x), int(puck.y)), puck.radius)
-        # Inner ring
-        pygame.draw.circle(self.surface, (180, 180, 200),
-                           (int(puck.x), int(puck.y)), puck.radius - 5, 2)
-        # Shine
-        pygame.draw.circle(self.surface, (255, 255, 255),
-                           (int(puck.x) - 4, int(puck.y) - 4), 4)
+                           
+        if scale <= 1.0:
+            # Trail only drawn when not spawning
+            draw_trail(self.surface, puck.trail, C_PUCK, max_radius=puck.radius - 4)
+
+        if scale > 1.0:
+            s = pygame.Surface((eff_radius*2, eff_radius*2), pygame.SRCALPHA)
+            pygame.draw.circle(s, (*C_PUCK[:3], alpha), (eff_radius, eff_radius), eff_radius)
+            pygame.draw.circle(s, (180, 180, 200, alpha), (eff_radius, eff_radius), max(1, eff_radius - int(5*scale)), max(1, int(2*scale)))
+            pygame.draw.circle(s, (255, 255, 255, alpha), (eff_radius - int(4*scale), eff_radius - int(4*scale)), max(1, int(4*scale)))
+            self.surface.blit(s, (int(puck.x) - eff_radius, int(puck.y) - eff_radius))
+        else:
+            # Main disc
+            pygame.draw.circle(self.surface, C_PUCK,
+                               (int(puck.x), int(puck.y)), puck.radius)
+            # Inner ring
+            pygame.draw.circle(self.surface, (180, 180, 200),
+                               (int(puck.x), int(puck.y)), puck.radius - 5, 2)
+            # Shine
+            pygame.draw.circle(self.surface, (255, 255, 255),
+                               (int(puck.x) - 4, int(puck.y) - 4), 4)
 
     def draw_paddle(self, paddle, is_ai: bool = False):
         color = C_PADDLE_AI if is_ai else (
@@ -177,9 +192,17 @@ class Renderer:
         # ── White field markings ──────────────────────────────────────────
         lw = 2   # line width
 
-        # Outer border
-        pygame.draw.rect(surf, self.c_line,
-                         (TABLE_LEFT, TABLE_TOP, tw, th), lw)
+        # Outer border (straight line segments stopping short of corners)
+        cr_bouncy = 24
+        # Top wall
+        pygame.draw.line(surf, self.c_line, (TABLE_LEFT + cr_bouncy, TABLE_TOP), (TABLE_RIGHT - cr_bouncy, TABLE_TOP), lw)
+        # Bottom wall
+        pygame.draw.line(surf, self.c_line, (TABLE_LEFT + cr_bouncy, TABLE_BOTTOM), (TABLE_RIGHT - cr_bouncy, TABLE_BOTTOM), lw)
+        # Left wall
+        pygame.draw.line(surf, self.c_line, (TABLE_LEFT, TABLE_TOP + cr_bouncy), (TABLE_LEFT, TABLE_BOTTOM - cr_bouncy), lw)
+        # Right wall
+        pygame.draw.line(surf, self.c_line, (TABLE_RIGHT, TABLE_TOP + cr_bouncy), (TABLE_RIGHT, TABLE_BOTTOM - cr_bouncy), lw)
+
 
         # Center line (Vertical)
         pygame.draw.line(surf, self.c_line,
@@ -224,19 +247,21 @@ class Renderer:
         pygame.draw.circle(surf, self.c_line,
                            (TABLE_RIGHT - 90, cy), 4)
 
-        # ── Corner arcs ───────────────────────────────────────────────────
-        cr = 18   # corner arc radius
-        for (bx, by, start, stop) in [
-            (TABLE_LEFT,  TABLE_TOP,    -math.pi / 2, 0),
-            (TABLE_RIGHT, TABLE_TOP,    math.pi, 3 * math.pi / 2),
-            (TABLE_LEFT,  TABLE_BOTTOM, 0, math.pi / 2),
-            (TABLE_RIGHT, TABLE_BOTTOM, math.pi / 2, math.pi),
+        # ── Bouncy Corners ────────────────────────────────────────────────
+        # Draw yellow quarter arcs of radius 24 perfectly connecting the outer walls
+        cr_bouncy = 24
+        for bx, by, start_ang, stop_ang in [
+            (TABLE_LEFT,  TABLE_TOP,    1.5 * math.pi, 2.0 * math.pi), # Top-Left
+            (TABLE_RIGHT, TABLE_TOP,    1.0 * math.pi, 1.5 * math.pi), # Top-Right
+            (TABLE_LEFT,  TABLE_BOTTOM, 0.0 * math.pi, 0.5 * math.pi), # Bottom-Left
+            (TABLE_RIGHT, TABLE_BOTTOM, 0.5 * math.pi, 1.0 * math.pi), # Bottom-Right
         ]:
-            arc_r = pygame.Rect(bx - cr, by - cr, cr * 2, cr * 2)
-            try:
-                pygame.draw.arc(surf, self.c_line, arc_r, start, stop, lw)
-            except Exception:
-                pass
+            rect = (bx - cr_bouncy, by - cr_bouncy, cr_bouncy * 2, cr_bouncy * 2)
+            # Draw the main arc in yellow, slightly thicker for prominence
+            pygame.draw.arc(surf, C_NEON_YELLOW, rect, start_ang, stop_ang, lw + 1)
+            
+            # Add a subtle glowing yellow backing arc
+            pygame.draw.arc(surf, (*C_NEON_YELLOW[:3], 100), rect, start_ang, stop_ang, lw + 3)
 
         # ── Goal nets ─────────────────────────────────────────────────────
         net_d = 28   # net depth

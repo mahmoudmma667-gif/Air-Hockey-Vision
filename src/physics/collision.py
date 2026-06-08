@@ -50,6 +50,8 @@ class CollisionSystem:
             puck.x += puck.vx * dt
             puck.y += puck.vy * dt
 
+            self._check_corners(puck)
+
             hit_wall = self._check_walls(puck)
             if hit_wall:
                 bus.emit(EVT_PUCK_HIT_WALL, side=hit_wall)
@@ -66,6 +68,44 @@ class CollisionSystem:
         return goal
 
     # ── Internal ──────────────────────────────────────────────────────────────
+
+    def _check_corners(self, puck):
+        corners = [
+            (TABLE_LEFT, TABLE_TOP),
+            (TABLE_RIGHT, TABLE_TOP),
+            (TABLE_LEFT, TABLE_BOTTOM),
+            (TABLE_RIGHT, TABLE_BOTTOM),
+        ]
+        cr = 24  # Physical corner radius
+        for cx, cy in corners:
+            dx = puck.x - cx
+            dy = puck.y - cy
+            dist = math.hypot(dx, dy)
+            if dist < cr + puck.radius:
+                nx = dx / dist if dist != 0 else 1
+                ny = dy / dist if dist != 0 else 0
+                
+                # Push puck out
+                overlap = (cr + puck.radius) - dist
+                puck.x += nx * overlap
+                puck.y += ny * overlap
+                
+                # Reflect velocity and boost speed
+                dot = puck.vx * nx + puck.vy * ny
+                if dot < 0:
+                    puck.vx -= 2 * dot * nx
+                    puck.vy -= 2 * dot * ny
+                    puck.vx *= 1.4
+                    puck.vy *= 1.4
+                    
+                    # Cap speed after boost
+                    spd = vec2_length((puck.vx, puck.vy))
+                    if spd > PUCK_MAX_SPEED * 1.2:
+                        s = (PUCK_MAX_SPEED * 1.2) / spd
+                        puck.vx *= s
+                        puck.vy *= s
+                        
+                    bus.emit(EVT_PUCK_HIT_WALL, side='corner')
 
     def _check_walls(self, puck) -> str | None:
         r   = puck.radius
@@ -108,11 +148,15 @@ class CollisionSystem:
         if not colliding:
             return False
 
-        # Separate circles
-        puck.x += normal[0] * depth
-        puck.y += normal[1] * depth
-
         paddle_vel = paddle.smoothed_velocity
+
+        # Separate circles: Add paddle velocity to separation to prevent tunneling at high speeds
+        paddle_speed_into_puck = paddle_vel[0] * normal[0] + paddle_vel[1] * normal[1]
+        extra_sep = max(0.0, paddle_speed_into_puck * (1.0 / PHYSICS_SUBSTEPS))
+        total_depth = depth + extra_sep
+
+        puck.x += normal[0] * total_depth
+        puck.y += normal[1] * total_depth
         rel_vx = puck.vx - paddle_vel[0]
         rel_vy = puck.vy - paddle_vel[1]
         rel_dot = rel_vx * normal[0] + rel_vy * normal[1]

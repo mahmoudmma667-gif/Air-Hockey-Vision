@@ -178,8 +178,11 @@ class MotionSmoother:
         closer to the raw camera position for more aggressive play.
         """
         s = max(0.0, min(1.0, float(smoothness)))
-        min_cutoff = 2.2 - s * 1.45
-        beta = 0.24 - s * 0.16
+        # Tuned for more fluid and snappy HCI in fast-paced gaming:
+        # Smoothness 0.0 -> very raw, fast (min_cutoff=4.0, beta=0.4)
+        # Smoothness 1.0 -> very smooth, slow (min_cutoff=1.5, beta=0.1)
+        min_cutoff = 4.0 - s * 2.5
+        beta = 0.40 - s * 0.30
 
         self._fx.min_cutoff = min_cutoff
         self._fy.min_cutoff = min_cutoff

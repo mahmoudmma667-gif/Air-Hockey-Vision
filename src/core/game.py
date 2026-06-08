@@ -39,8 +39,18 @@ class Game:
         # Try to set a nice icon
         try:
             icon = pygame.Surface((32, 32), pygame.SRCALPHA)
-            pygame.draw.circle(icon, (0, 220, 255), (16, 16), 14, 3)
-            pygame.draw.circle(icon, (255, 255, 255), (16, 16), 5)
+            # Subtle cyan neon glow background
+            for r in range(15, 9, -2):
+                alpha = int(45 * (1.0 - (r - 10) / 6))
+                pygame.draw.circle(icon, (0, 220, 255, alpha), (16, 16), r)
+            # Sleek cyan outer ring
+            pygame.draw.circle(icon, (0, 220, 255), (16, 16), 11, 2)
+            # Metallic puck body
+            pygame.draw.circle(icon, (40, 44, 55), (16, 16), 9)
+            # Silver inner ridge
+            pygame.draw.circle(icon, (180, 185, 200), (16, 16), 7, 1)
+            # Bright highlight shine (3D effect)
+            pygame.draw.circle(icon, (255, 255, 255), (13, 13), 2)
             pygame.display.set_icon(icon)
         except Exception:
             pass

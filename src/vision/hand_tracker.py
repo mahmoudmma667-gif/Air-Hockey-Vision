@@ -42,8 +42,19 @@ from src.core.settings import (
     CAMERA_FPS, HAND_PROCESS_FPS,
     TRACKING_CONFIDENCE, DETECTION_CONFIDENCE,
     HAND_SMOOTHING_ALPHA,
+    CAM_PANEL_W, CAM_PANEL_H,
 )
 from src.vision.smoother import MotionSmoother
+
+# MediaPipe hand-connection skeleton for overlay drawing
+_MP_CONNECTIONS = [
+    (0,1),(1,2),(2,3),(3,4),          # thumb
+    (0,5),(5,6),(6,7),(7,8),          # index
+    (0,9),(9,10),(10,11),(11,12),     # middle
+    (0,13),(13,14),(14,15),(15,16),   # ring
+    (0,17),(17,18),(18,19),(19,20),   # pinky
+    (5,9),(9,13),(13,17),             # palm
+]
 
 
 class HandTracker:
@@ -72,7 +83,7 @@ class HandTracker:
         self._running  = False
         self._process_interval = 1.0 / max(1, HAND_PROCESS_FPS)
         self._last_process_time = 0.0
-        self._lost_grace = 0.12
+        self._lost_grace = 0.05
 
         self._smoothers: list[MotionSmoother] = [
             MotionSmoother(alpha=HAND_SMOOTHING_ALPHA) for _ in range(self.MAX_HANDS)
@@ -98,6 +109,7 @@ class HandTracker:
         self._frame_ready = threading.Event()
 
         self.latest_frame: np.ndarray | None = None
+        self.thumbnail_rgb_bytes: bytes | None = None
         self.camera_available = False
 
     # ── Public API ────────────────────────────────────────────────────────────
@@ -229,6 +241,10 @@ class HandTracker:
                 idx: list(points) for idx, points in self.raw_landmarks.items()
             }
 
+    def get_thumbnail_bytes(self) -> bytes | None:
+        with self._lock:
+            return self.thumbnail_rgb_bytes
+
     def set_smoothing(self, smoothness: float):
         for smoother in self._smoothers:
             smoother.configure(smoothness)
@@ -285,56 +301,9 @@ class HandTracker:
             new_landmarks: dict[int, list]  = {}
 
             if self._hands is not None:
-                # RGB conversion — MediaPipe requirement
-                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                rgb.flags.writeable = False
-                results = self._hands.process(rgb)
-                rgb.flags.writeable = True
-
-                h, w = frame.shape[:2]
-
-                if results.multi_hand_landmarks:
-                    for i, (hand_lms, hand_info) in enumerate(
-                        zip(results.multi_hand_landmarks, results.multi_handedness)
-                    ):
-                        if i >= self.MAX_HANDS:
-                            break
-
-                        lm = hand_lms.landmark
-
-                        # ── Control point: index-tip & middle-tip centroid ──
-                        # This point follows the "front" of the hand, which
-                        # feels most natural and has the smallest travel arc.
-                        raw_x = (lm[self._CTRL_A].x + lm[self._CTRL_B].x) / 2.0
-                        raw_y = (lm[self._CTRL_A].y + lm[self._CTRL_B].y) / 2.0
-
-                        smoothed = self._smoothers[i].update((raw_x, raw_y))
-
-                        new_positions[i] = smoothed
-                        new_labels[i]    = hand_info.classification[0].label
-                        new_tracking[i]  = True
-                        self._last_seen[i] = self._last_process_time
-                        self.tracking_quality[i] = self._smoothers[i].quality
-
-                        # ── Open / closed hand detection ───────────────────
-                        wrist = lm[0]
-                        tips = [8, 12, 16, 20]
-                        mcps = [5,  9, 13, 17]
-                        open_fingers = 0
-                        for t, m in zip(tips, mcps):
-                            dist_tip = math.hypot(
-                                lm[t].x - wrist.x, lm[t].y - wrist.y)
-                            dist_mcp = math.hypot(
-                                lm[m].x - wrist.x, lm[m].y - wrist.y)
-                            if dist_tip > dist_mcp:
-                                open_fingers += 1
-                        new_open[i] = (open_fingers >= 2)
-
-                        # ── Raw pixel landmarks for overlay ────────────────
-                        new_landmarks[i] = [
-                            (int(lm_pt.x * w), int(lm_pt.y * h))
-                            for lm_pt in lm
-                        ]
+                self._process_mediapipe_results(
+                    frame, new_positions, new_labels, new_tracking, new_open, new_landmarks
+                )
 
             with self._lock:
                 prev_positions = dict(self._positions)
@@ -342,27 +311,12 @@ class HandTracker:
                 prev_open = list(self.is_open)
                 prev_landmarks = dict(self.raw_landmarks)
 
-            # Hold very short tracking dropouts so one missed MediaPipe frame
-            # does not turn into visible hand jitter.
-            for i in range(self.MAX_HANDS):
-                if not new_tracking[i]:
-                    recently_seen = (
-                        self._last_process_time - self._last_seen[i] <= self._lost_grace
-                    )
-                    if recently_seen and i in prev_positions:
-                        new_positions[i] = prev_positions[i]
-                        new_labels[i] = prev_labels.get(i, "?")
-                        new_tracking[i] = True
-                        new_open[i] = prev_open[i]
-                        if i in prev_landmarks:
-                            new_landmarks[i] = prev_landmarks[i]
-                        self.tracking_quality[i] = max(
-                            0.0, self.tracking_quality[i] * 0.75
-                        )
-                    else:
-                        self._smoothers[i].reset()
-                        self.tracking_quality[i] = 0.0
-                        new_open[i] = False
+            self._handle_tracking_dropouts(
+                new_positions, new_labels, new_tracking, new_open, new_landmarks,
+                prev_positions, prev_labels, prev_open, prev_landmarks
+            )
+
+            thumb_bytes = self._render_thumbnail(frame, new_landmarks)
 
             with self._lock:
                 self._positions   = new_positions
@@ -371,3 +325,86 @@ class HandTracker:
                 self.is_open      = new_open
                 self.raw_landmarks= new_landmarks
                 self.latest_frame = frame
+                self.thumbnail_rgb_bytes = thumb_bytes
+
+    def _process_mediapipe_results(self, frame, new_positions, new_labels, new_tracking, new_open, new_landmarks):
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        rgb.flags.writeable = False
+        results = self._hands.process(rgb)
+        rgb.flags.writeable = True
+
+        h, w = frame.shape[:2]
+
+        if not results.multi_hand_landmarks:
+            return
+
+        for i, (hand_lms, hand_info) in enumerate(zip(results.multi_hand_landmarks, results.multi_handedness)):
+            if i >= self.MAX_HANDS:
+                break
+
+            lm = hand_lms.landmark
+            raw_x = (lm[self._CTRL_A].x + lm[self._CTRL_B].x) / 2.0
+            raw_y = (lm[self._CTRL_A].y + lm[self._CTRL_B].y) / 2.0
+            smoothed = self._smoothers[i].update((raw_x, raw_y))
+
+            new_positions[i] = smoothed
+            new_labels[i]    = hand_info.classification[0].label
+            new_tracking[i]  = True
+            self._last_seen[i] = self._last_process_time
+            self.tracking_quality[i] = self._smoothers[i].quality
+
+            wrist = lm[0]
+            tips = [8, 12, 16, 20]
+            mcps = [5,  9, 13, 17]
+            open_fingers = sum(
+                1 for t, m in zip(tips, mcps)
+                if math.hypot(lm[t].x - wrist.x, lm[t].y - wrist.y) > math.hypot(lm[m].x - wrist.x, lm[m].y - wrist.y)
+            )
+            new_open[i] = (open_fingers >= 2)
+
+            new_landmarks[i] = [(int(lm_pt.x * w), int(lm_pt.y * h)) for lm_pt in lm]
+
+    def _handle_tracking_dropouts(self, new_positions, new_labels, new_tracking, new_open, new_landmarks,
+                                  prev_positions, prev_labels, prev_open, prev_landmarks):
+        for i in range(self.MAX_HANDS):
+            if not new_tracking[i]:
+                recently_seen = (self._last_process_time - self._last_seen[i] <= self._lost_grace)
+                if recently_seen and i in prev_positions:
+                    dt = self._last_process_time - self._last_seen[i]
+                    pred = self._smoothers[i].predict(dt=dt)
+                    new_positions[i] = pred if pred is not None else prev_positions[i]
+                    new_labels[i] = prev_labels.get(i, "?")
+                    new_tracking[i] = True
+                    new_open[i] = prev_open[i]
+                    if i in prev_landmarks:
+                        new_landmarks[i] = prev_landmarks[i]
+                    self.tracking_quality[i] = max(0.0, self.tracking_quality[i] * 0.75)
+                else:
+                    self._smoothers[i].reset()
+                    self.tracking_quality[i] = 0.0
+                    new_open[i] = False
+
+    def _render_thumbnail(self, frame, new_landmarks) -> bytes | None:
+        if frame is None:
+            return None
+        tw, th = CAM_PANEL_W, CAM_PANEL_H
+        try:
+            small = cv2.resize(frame, (tw, th))
+            h_orig, w_orig = frame.shape[:2]
+            sx, sy = tw / w_orig, th / h_orig
+            
+            for i in range(self.MAX_HANDS):
+                if i in new_landmarks:
+                    color_bgr = (220, 130, 40) if i == 0 else (40, 120, 220)
+                    lms = new_landmarks[i]
+                    for (a, b) in _MP_CONNECTIONS:
+                        ax, ay = int(lms[a][0] * sx), int(lms[a][1] * sy)
+                        bx, by = int(lms[b][0] * sx), int(lms[b][1] * sy)
+                        cv2.line(small, (ax, ay), (bx, by), color_bgr, 1)
+                    for pt in lms:
+                        px, py = int(pt[0] * sx), int(pt[1] * sy)
+                        cv2.circle(small, (px, py), 2, (255, 255, 255), -1)
+            rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+            return rgb.tobytes()
+        except Exception:
+            return None

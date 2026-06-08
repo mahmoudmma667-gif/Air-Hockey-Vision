@@ -11,8 +11,8 @@ TARGET_FPS    = 60
 MAX_FRAME_DT  = 1.0 / 30.0  # Clamp big frame spikes so brief stalls do not jerk motion
 
 # ─── Camera panels (sides) ───────────────────────────────────────────────────
-CAM_PANEL_W   = 180    # width of each side camera panel
-CAM_PANEL_H   = 135    # camera thumbnail height
+CAM_PANEL_W   = 160    # width of each side camera panel
+CAM_PANEL_H   = 120    # camera thumbnail height
 
 # ─── Table / Field ───────────────────────────────────────────────────────────
 TABLE_MARGIN_X = 40
@@ -69,7 +69,7 @@ AI_ERROR_MAGNITUDES = {
 }
 
 # ─── Scoring ─────────────────────────────────────────────────────────────────
-SCORE_TO_WIN    = 7
+SCORE_TO_WIN    = 10
 MATCH_DURATION  = 0           # 0 = unlimited
 
 # ─── Vision / Tracking ───────────────────────────────────────────────────────
