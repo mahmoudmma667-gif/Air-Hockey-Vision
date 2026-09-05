@@ -9,6 +9,7 @@
 [![OpenCV](https://img.shields.io/badge/OpenCV-4.x-5C3EE8?style=flat-square&logo=opencv)](https://opencv.org/)
 [![MediaPipe](https://img.shields.io/badge/MediaPipe-Hands-FF6F00?style=flat-square)](https://mediapipe.dev/)
 
+[![R&D Vault](https://img.shields.io/badge/R&D_Lab-Unpublished_Projects-FF7043?style=flat-square&logo=google-drive&logoColor=white)](https://drive.google.com/drive/folders/1kiHqqwVdxUSoqlmwTYuLyLCfzqskKq11)
 **A high-performance, research-grade Python system demonstrating a multi-threaded computer vision interface for real-time Human-Computer Interaction (HCI). Fully open-source and submitted for peer review in the Journal of Open Source Software (JOSS).**
 
 > **Author:** Mahmoud Labib — Faculty of Specific Education, Benha University, Egypt
@@ -354,6 +355,22 @@ If you use this software in your research, please cite it using the following Bi
 ```
 
 You can also use the GitHub **"Cite this repository"** button (powered by the included `CITATION.cff` file).
+
+---
+
+## 🔮 R&D Vault & Unpublished Innovations (المزيد من المشاريع والنماذج)
+
+> ### 📂 [Explore More Innovative & Unpublished Projects on Google Drive](https://drive.google.com/drive/folders/1kiHqqwVdxUSoqlmwTYuLyLCfzqskKq11)
+> 
+> Discover an exclusive collection of experimental prototypes, unpublished computer vision concepts, spatial computing engines, and confidential research repositories by **Mahmoud Labib**:
+> 
+> - 🧪 **Experimental Computer Vision & Gesture Prototypes**
+> - 🕹️ **Real-Time Physics & Neural Interaction Engines**
+> - 📐 **Procedural Generative CAD & Spatial Mathematics**
+> - ⚡ **High-Throughput HCI, Python & WebAssembly Experiments**
+> 
+> 👉 **[Click here to access the Full Projects Archive & R&D Labs](https://drive.google.com/drive/folders/1kiHqqwVdxUSoqlmwTYuLyLCfzqskKq11)**
+
 
 ---
 
