@@ -14,6 +14,14 @@
 
 > **Author:** Mahmoud Labib — Faculty of Specific Education, Benha University, Egypt
 
+
+<br/>
+
+<div align="center">
+  <img src="docs/images/gameplay-hand-tracking.jpg" alt="Air Hockey Vision Real-Time Gameplay with MediaPipe Hand Tracking" width="100%" style="border-radius: 10px;" />
+  <p><em>Real-time gameplay in action: 60 FPS neon air hockey simulation controlled via live camera hand landmark tracking against the AI opponent.</em></p>
+</div>
+
 ---
 
 ## Table of Contents
